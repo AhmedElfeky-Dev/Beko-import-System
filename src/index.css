@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 14%;
+
+    --primary: 210 70% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 215 25% 14%;
+
+    --muted: 210 15% 95%;
+    --muted-foreground: 215 12% 50%;
+
+    --accent: 173 58% 39%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 18% 89%;
+    --input: 214 18% 89%;
+    --ring: 210 70% 38%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 215 25% 14%;
+    --sidebar-foreground: 210 15% 85%;
+    --sidebar-primary: 173 58% 46%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 20% 20%;
+    --sidebar-accent-foreground: 210 15% 90%;
+    --sidebar-border: 215 20% 22%;
+    --sidebar-ring: 173 58% 46%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 210 70% 50%;
+    --info-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .status-not-shipped { @apply bg-secondary text-muted-foreground; }
+  .status-in-transit { @apply text-info-foreground; background: hsl(var(--info)); }
+  .status-at-customs { @apply text-warning-foreground; background: hsl(var(--warning)); }
+  .status-released { @apply text-success-foreground; background: hsl(var(--success)); }
+  .status-delayed { @apply text-destructive-foreground bg-destructive; }
+
+  .kpi-card {
+    @apply bg-card rounded-lg border p-5 shadow-sm transition-shadow hover:shadow-md;
+  }
+}
