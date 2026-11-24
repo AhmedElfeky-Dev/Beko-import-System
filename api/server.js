@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { seedIfNeeded } = require('./_lib/seed');
+const { initIfNeeded } = require('./_lib/init');
 
 const app = express();
 
@@ -19,7 +19,7 @@ app.use((_req, res, next) => {
 
 // Seed DB on first request
 app.use(async (_req, _res, next) => {
-  await seedIfNeeded();
+  await initIfNeeded();
   next();
 });
 
