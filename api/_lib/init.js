@@ -75,9 +75,17 @@ export async function initIfNeeded() {
 
     const existing = await get('SELECT id FROM users LIMIT 1', []);
     if (!existing) {
+      let adminPassword = process.env.ADMIN_INITIAL_PASSWORD;
+      if (!adminPassword) {
+        if (process.env.VERCEL) {
+          throw new Error('ADMIN_INITIAL_PASSWORD environment variable is required to seed the initial admin user.');
+        }
+        adminPassword = crypto.randomBytes(12).toString('hex');
+        console.log(`⚠️ Local dev admin seeded: admin@swiftcargo.local / ${adminPassword}`);
+      } else {
+        console.log('✅ DB initialized: admin user seeded (admin@swiftcargo.local) using ADMIN_INITIAL_PASSWORD.');
+      }
       const adminId = uuidv4();
-      // Use env var or generate a random password for first-time seeding
-      const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || crypto.randomBytes(16).toString('hex');
       const hash = bcrypt.hashSync(adminPassword, 10);
       await run('INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
         [adminId, 'admin@swiftcargo.local', hash, 'Admin']);
@@ -105,7 +113,7 @@ export async function initIfNeeded() {
         await run(`INSERT INTO master_data (id, category, value, code) VALUES ($1,$2,$3,$4)
                    ON CONFLICT (category, value) DO NOTHING`, [uuidv4(), category, value, null]);
       }
-      console.log('✅ DB initialized: admin user seeded (admin@swiftcargo.local). Set ADMIN_INITIAL_PASSWORD env var or change password via UI.');
+      console.log('✅ Initial master data seeded.');
     }
   } catch (err) {
     console.error('initIfNeeded error:', err.message);
