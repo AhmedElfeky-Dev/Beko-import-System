@@ -127,7 +127,7 @@ function CopyCell({ value, width }: { value: string | undefined; width: number }
   };
 
   return (
-    <td className="px-4 py-3 text-muted-foreground" style={{ width, minWidth: width, maxWidth: width }}>
+    <td className="px-3 py-1.5 text-muted-foreground" style={{ width, minWidth: width, maxWidth: width }}>
       {text ? (
         <span className="inline-flex items-center gap-1.5 group max-w-full">
           <span className="truncate">{text}</span>
@@ -183,6 +183,9 @@ export default function ShipmentsList() {
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [modeFilter, setModeFilter] = useState<string>("all");
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerShipment, setDrawerShipment] = useState<Shipment | null>(null);
@@ -314,6 +317,15 @@ export default function ShipmentsList() {
     return rows;
   }, [shipments, search, statusFilter, supplierFilter, ownerFilter, modeFilter, sort]);
 
+  // Reset to page 1 whenever filters/search change
+  useEffect(() => { setPage(1); }, [search, statusFilter, supplierFilter, ownerFilter, modeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, filtered.length);
+
   const handleExport = async () => {
     try {
       const excelSettings = await loadShipmentExcelSettings();
@@ -434,7 +446,9 @@ export default function ShipmentsList() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Shipments</h1>
-          <p className="text-muted-foreground text-sm">{filtered.length} shipments</p>
+          <p className="text-muted-foreground text-sm">
+            {filtered.length === 0 ? "No shipments" : `Showing ${rangeStart}–${rangeEnd} of ${filtered.length}`}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <input
@@ -453,6 +467,36 @@ export default function ShipmentsList() {
           <Button size="sm" onClick={() => navigate("/shipments/new")}>
             <Plus className="h-4 w-4 mr-1.5" /> New Shipment
           </Button>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="flex items-center justify-between gap-4 px-4 py-2 border-t bg-muted/20 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="border rounded px-1.5 py-0.5 text-xs bg-background"
+            >
+              {[10, 15, 20, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span className="ml-2">
+              {filtered.length === 0 ? "No results" : `Showing ${rangeStart}–${rangeEnd} of ${filtered.length}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(1)} disabled={safePage === 1}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="First page">«</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="Previous page">‹</button>
+            <span className="px-2 text-xs text-muted-foreground whitespace-nowrap">
+              Page {safePage} of {totalPages}
+            </span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="Next page">›</button>
+            <button onClick={() => setPage(totalPages)} disabled={safePage === totalPages}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="Last page">»</button>
+          </div>
         </div>
       </div>
 
@@ -589,7 +633,7 @@ export default function ShipmentsList() {
 
       <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="text-sm border-collapse" style={{ tableLayout: "fixed", width: tableWidth, minWidth: tableWidth }}>
+          <table className="text-xs border-collapse" style={{ tableLayout: "fixed", width: tableWidth, minWidth: tableWidth }}>
             <thead>
               <tr className="border-b bg-muted/40">
                 {visibleColumns.map((col) => {
@@ -600,7 +644,7 @@ export default function ShipmentsList() {
                     <th
                       key={col.id}
                       className={cn(
-                        "relative px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground select-none group/th",
+                        "relative px-3 py-1.5 font-semibold text-xs uppercase tracking-wide text-muted-foreground select-none group/th",
                         col.align === "center" ? "text-center" : "text-left",
                         canSort && "cursor-pointer hover:bg-muted/70 hover:text-foreground transition-colors"
                       )}
@@ -634,7 +678,7 @@ export default function ShipmentsList() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => {
+              {paginated.map((s) => {
                 const computedStatus = calcStatus(s);
                 const lastFree = calcLastFreeReleaseDate(s);
                 const remaining = calcRemainingDaysToDemurrage(s);
@@ -658,7 +702,7 @@ export default function ShipmentsList() {
                     {visibleColumns.map((col) => {
                       const w = columnWidths[col.id];
                       const cellStyle = { width: w, minWidth: w, maxWidth: w };
-                      const baseCell = cn("px-4 py-3 overflow-hidden text-ellipsis whitespace-nowrap", col.align === "center" ? "text-center" : "text-left");
+                      const baseCell = cn("px-3 py-1.5 overflow-hidden text-ellipsis whitespace-nowrap", col.align === "center" ? "text-center" : "text-left");
                       switch (col.id) {
                         case "type":
                           return (
@@ -726,6 +770,36 @@ export default function ShipmentsList() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="flex items-center justify-between gap-4 px-4 py-2 border-t bg-muted/20 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="border rounded px-1.5 py-0.5 text-xs bg-background"
+            >
+              {[10, 15, 20, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span className="ml-2">
+              {filtered.length === 0 ? "No results" : `Showing ${rangeStart}–${rangeEnd} of ${filtered.length}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(1)} disabled={safePage === 1}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="First page">«</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="Previous page">‹</button>
+            <span className="px-2 text-xs text-muted-foreground whitespace-nowrap">
+              Page {safePage} of {totalPages}
+            </span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="Next page">›</button>
+            <button onClick={() => setPage(totalPages)} disabled={safePage === totalPages}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors" title="Last page">»</button>
+          </div>
         </div>
       </div>
 
