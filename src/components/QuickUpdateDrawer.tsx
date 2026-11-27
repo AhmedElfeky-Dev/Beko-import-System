@@ -108,7 +108,6 @@ export default function QuickUpdateDrawer({
     const datePairs: Array<[keyof typeof next, keyof typeof next, string, string]> = [
       ["etd", "etaPort", "ETD", "ETA Port"],
       ["etaPort", "etaFactory", "ETA Port", "ETA Factory"],
-      ["etaFactory", "ataFactory", "ETA Factory", "ATA Factory"],
       ["etaPort", "ataFactory", "ETA Port", "ATA Factory"],
     ];
     for (const [a, b, la, lb] of datePairs) {
