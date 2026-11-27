@@ -1,6 +1,6 @@
-const express = require('express');
-const { all, get, run } = require('../_lib/db.cjs');
-const { verifyToken, requirePermission } = require('../_lib/auth.cjs');
+import express from 'express';
+import { all, get, run } from '../_lib/db.js';
+import { verifyToken, requirePermission } from '../_lib/auth.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -76,4 +76,4 @@ router.delete('/:id', requirePermission('shipments', 'edit'), async (req, res) =
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-module.exports = router;
+export default router;

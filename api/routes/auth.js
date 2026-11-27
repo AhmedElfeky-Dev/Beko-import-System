@@ -1,8 +1,8 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { all, get } = require('../_lib/db.cjs');
-const { verifyToken, JWT_SECRET } = require('../_lib/auth.cjs');
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { all, get } from '../_lib/db.js';
+import { verifyToken, JWT_SECRET } from '../_lib/auth.js';
 
 const router = express.Router();
 
@@ -45,9 +45,7 @@ router.get('/me', verifyToken, async (req, res) => {
     const payload = await buildUserPayload(req.user.id);
     if (!payload) return res.status(404).json({ error: 'User not found' });
     res.json(payload);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-module.exports = router;
+export default router;

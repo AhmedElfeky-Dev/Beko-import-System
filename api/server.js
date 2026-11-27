@@ -1,6 +1,11 @@
-const express = require('express');
-const cors = require('cors');
-const { initIfNeeded } = require('./_lib/init.cjs');
+import express from 'express';
+import cors from 'cors';
+import { initIfNeeded } from './_lib/init.js';
+import authRoutes from './routes/auth.js';
+import shipmentsRoutes from './routes/shipments.js';
+import masterDataRoutes from './routes/masterData.js';
+import usersRoutes from './routes/users.js';
+import settingsRoutes from './routes/settings.js';
 
 const app = express();
 
@@ -16,20 +21,18 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Initialize DB on first request
 app.use(async (_req, _res, next) => {
   try { await initIfNeeded(); } catch (e) { console.error('init error:', e.message); }
   next();
 });
 
-// Routes
-app.use('/api/auth', require('./routes/auth.cjs'));
-app.use('/api/shipments', require('./routes/shipments.cjs'));
-app.use('/api/master-data', require('./routes/masterData.cjs'));
-app.use('/api/users', require('./routes/users.cjs'));
-app.use('/api/settings', require('./routes/settings.cjs'));
+app.use('/api/auth', authRoutes);
+app.use('/api/shipments', shipmentsRoutes);
+app.use('/api/master-data', masterDataRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/settings', settingsRoutes);
 app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
-module.exports = app;
+export default app;

@@ -1,7 +1,7 @@
-const express = require('express');
-const { all, get, run } = require('../_lib/db.cjs');
-const { verifyToken, requirePermission } = require('../_lib/auth.cjs');
-const { v4: uuidv4 } = require('uuid');
+import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { all, get, run } from '../_lib/db.js';
+import { verifyToken, requirePermission } from '../_lib/auth.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -79,4 +79,4 @@ router.delete('/:id', requirePermission('settings', 'edit'), async (req, res) =>
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-module.exports = router;
+export default router;

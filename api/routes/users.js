@@ -1,8 +1,8 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
-const { all, get, run } = require('../_lib/db.cjs');
-const { verifyToken, requireAdmin } = require('../_lib/auth.cjs');
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import { all, get, run } from '../_lib/db.js';
+import { verifyToken, requireAdmin } from '../_lib/auth.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -41,8 +41,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { email, name, password, roles } = req.body;
-    const existing = await get('SELECT id FROM users WHERE id = $1', [id]);
-    if (!existing) return res.status(404).json({ error: 'User not found' });
+    if (!(await get('SELECT id FROM users WHERE id = $1', [id]))) return res.status(404).json({ error: 'User not found' });
     if (email || name !== undefined) await run('UPDATE users SET email = COALESCE($1, email), name = COALESCE($2, name), updated_at = NOW() WHERE id = $3', [email || null, name !== undefined ? name : null, id]);
     if (password) await run('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [await bcrypt.hash(password, 12), id]);
     if (Array.isArray(roles)) {
@@ -98,4 +97,4 @@ router.put('/:id/roles', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-module.exports = router;
+export default router;

@@ -4,6 +4,6 @@
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/server.cjs": { "maxDuration": 30 }
+    "api/server.js": { "maxDuration": 30 }
   }
 }

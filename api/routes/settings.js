@@ -1,6 +1,6 @@
-const express = require('express');
-const { get, run } = require('../_lib/db.cjs');
-const { verifyToken, requireAdmin } = require('../_lib/auth.cjs');
+import express from 'express';
+import { get, run } from '../_lib/db.js';
+import { verifyToken, requireAdmin } from '../_lib/auth.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -45,4 +45,4 @@ router.put('/excel', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-module.exports = router;
+export default router;

@@ -1,10 +1,10 @@
-const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
-const { get, run, pool } = require('./db.cjs');
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import { get, run, pool } from './db.js';
 
 let initialized = false;
 
-async function initIfNeeded() {
+export async function initIfNeeded() {
   if (initialized) return;
   initialized = true;
   try {
@@ -61,20 +61,13 @@ async function initIfNeeded() {
     if (!existing) {
       const adminId = uuidv4();
       const hash = bcrypt.hashSync('admin123', 10);
-      await run(
-        'INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
-        [adminId, 'admin@swiftcargo.local', hash, 'Admin']
-      );
-      await run(
-        'INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [adminId, 'admin']
-      );
+      await run('INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
+        [adminId, 'admin@swiftcargo.local', hash, 'Admin']);
+      await run('INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [adminId, 'admin']);
       for (const page of ['dashboard', 'shipments', 'costs', 'settings']) {
-        await run(
-          `INSERT INTO page_permissions (user_id, page, can_view, can_edit, can_delete)
-           VALUES ($1, $2, true, true, true) ON CONFLICT DO NOTHING`,
-          [adminId, page]
-        );
+        await run(`INSERT INTO page_permissions (user_id, page, can_view, can_edit, can_delete)
+                   VALUES ($1, $2, true, true, true) ON CONFLICT DO NOTHING`, [adminId, page]);
       }
       const SEED = [
         ['supplier_name','Bosch Home Appliances'],['supplier_name','Samsung Electronics'],['supplier_name','LG Electronics'],
@@ -91,11 +84,8 @@ async function initIfNeeded() {
         ['owner','Ragab'],['owner','Atef'],['owner','Mostafa'],
       ];
       for (const [category, value] of SEED) {
-        await run(
-          `INSERT INTO master_data (id, category, value, code) VALUES ($1, $2, $3, $4)
-           ON CONFLICT (category, value) DO NOTHING`,
-          [uuidv4(), category, value, null]
-        );
+        await run(`INSERT INTO master_data (id, category, value, code) VALUES ($1,$2,$3,$4)
+                   ON CONFLICT (category, value) DO NOTHING`, [uuidv4(), category, value, null]);
       }
       console.log('✅ DB initialized: admin@swiftcargo.local / admin123');
     }
@@ -104,5 +94,3 @@ async function initIfNeeded() {
     initialized = false;
   }
 }
-
-module.exports = { initIfNeeded };

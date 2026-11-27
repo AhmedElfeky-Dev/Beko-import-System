@@ -1,4 +1,5 @@
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
@@ -17,18 +18,18 @@ async function execute(sql, params = []) {
   }
 }
 
-async function all(sql, params = []) {
+export async function all(sql, params = []) {
   const r = await execute(sql, params);
   return r.rows;
 }
 
-async function get(sql, params = []) {
+export async function get(sql, params = []) {
   const r = await execute(sql, params);
   return r.rows[0] || null;
 }
 
-async function run(sql, params = []) {
+export async function run(sql, params = []) {
   await execute(sql, params);
 }
 
-module.exports = { all, get, run, pool };
+export { pool };
