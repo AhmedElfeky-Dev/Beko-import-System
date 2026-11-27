@@ -57,6 +57,7 @@ interface ColumnDef {
 
 const COLUMNS: ColumnDef[] = [
   { id: "type", label: "Type", minWidth: 72, defaultWidth: 84, align: "left", sortable: true },
+  { id: "actions", label: "Actions", minWidth: 72, defaultWidth: 80, align: "center", sortable: false, hideable: false },
   { id: "owner", label: "Owner", minWidth: 110, defaultWidth: 140, align: "left", sortable: true },
   { id: "supplier", label: "Supplier", minWidth: 140, defaultWidth: 200, align: "left", sortable: true },
   { id: "po", label: "PO", minWidth: 110, defaultWidth: 140, align: "left", sortable: true },
@@ -70,7 +71,6 @@ const COLUMNS: ColumnDef[] = [
   { id: "freeDays", label: "Free Days", minWidth: 90, defaultWidth: 100, align: "center", sortable: true },
   { id: "lastFreeRelease", label: "Last Free Release", minWidth: 140, defaultWidth: 150, align: "left", sortable: true },
   { id: "daysToDemurrage", label: "Days to Demurrage", minWidth: 140, defaultWidth: 150, align: "center", sortable: true },
-  { id: "actions", label: "Actions", minWidth: 72, defaultWidth: 80, align: "center", sortable: false, hideable: false },
 ];
 
 const DEFAULT_VISIBILITY: Record<ColumnId, boolean> = COLUMNS.reduce((acc, c) => {
