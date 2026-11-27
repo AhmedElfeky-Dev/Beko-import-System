@@ -96,6 +96,8 @@ export interface Shipment {
   weightKg?: number;
   cbm?: number;
   owner?: string;
+  /** Server-managed optimistic lock version; pass back on PUT/PATCH */
+  _version?: number;
 }
 
 export const DOCUMENT_TYPES: DocumentType[] = ["Invoice", "Packing List", "Bill of Lading", "COO", "EUR1"];

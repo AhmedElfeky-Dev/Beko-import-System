@@ -64,7 +64,12 @@ export function ShipmentProvider({ children }: { children: ReactNode }) {
       const updated = await apiUpdateShipment(s.id, s);
       setShipments((prev) => prev.map((p) => (p.id === s.id ? (updated as Shipment) : p)));
     } catch (err: any) {
-      toast.error("Failed to update shipment: " + (err?.message || "Unknown error"));
+      if (err?.status === 409) {
+        toast.error("Conflict: This shipment was modified by another user. Refreshing data...");
+        await fetchShipments();
+      } else {
+        toast.error("Failed to update shipment: " + (err?.message || "Unknown error"));
+      }
       throw err;
     }
   };

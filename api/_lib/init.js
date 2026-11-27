@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { get, run, pool } from './db.js';
 
 let initialized = false;
@@ -53,6 +54,21 @@ export async function initIfNeeded() {
           UNIQUE (category, value)
         );
       `);
+
+      // Migrations — safe to run repeatedly
+      await client.query(`
+        ALTER TABLE shipments ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id SERIAL PRIMARY KEY,
+          user_id TEXT,
+          user_email TEXT,
+          action TEXT NOT NULL,
+          entity_type TEXT NOT NULL,
+          entity_id TEXT,
+          details JSONB,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
     } finally {
       client.release();
     }
@@ -60,7 +76,9 @@ export async function initIfNeeded() {
     const existing = await get('SELECT id FROM users LIMIT 1', []);
     if (!existing) {
       const adminId = uuidv4();
-      const hash = bcrypt.hashSync('admin123', 10);
+      // Use env var or generate a random password for first-time seeding
+      const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || crypto.randomBytes(16).toString('hex');
+      const hash = bcrypt.hashSync(adminPassword, 10);
       await run('INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
         [adminId, 'admin@swiftcargo.local', hash, 'Admin']);
       await run('INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING',
@@ -87,7 +105,7 @@ export async function initIfNeeded() {
         await run(`INSERT INTO master_data (id, category, value, code) VALUES ($1,$2,$3,$4)
                    ON CONFLICT (category, value) DO NOTHING`, [uuidv4(), category, value, null]);
       }
-      console.log('✅ DB initialized: admin@swiftcargo.local / admin123');
+      console.log('✅ DB initialized: admin user seeded (admin@swiftcargo.local). Set ADMIN_INITIAL_PASSWORD env var or change password via UI.');
     }
   } catch (err) {
     console.error('initIfNeeded error:', err.message);

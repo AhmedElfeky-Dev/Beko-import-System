@@ -21,8 +21,11 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.use(async (_req, _res, next) => {
-  try { await initIfNeeded(); } catch (e) { console.error('init error:', e.message); }
+app.use(async (_req, res, next) => {
+  try { await initIfNeeded(); } catch (e) {
+    console.error('init error:', e.message);
+    return res.status(503).json({ error: 'Service temporarily unavailable' });
+  }
   next();
 });
 

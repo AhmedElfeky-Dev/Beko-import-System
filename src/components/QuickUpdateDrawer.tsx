@@ -162,12 +162,17 @@ export default function QuickUpdateDrawer({
 
     setSaving(true);
     try {
-      await apiPatchShipment(shipment.id, patch);
+      await apiPatchShipment(shipment.id, { ...patch, _version: shipment._version });
       await refresh();
       toast.success("Shipment updated successfully");
       onOpenChange(false);
     } catch (err: any) {
-      toast.error("Update failed: " + (err?.message || "Unknown error"));
+      if (err?.status === 409) {
+        toast.error("Conflict: This shipment was modified by another user. Refreshing...");
+        await refresh();
+      } else {
+        toast.error("Update failed: " + (err?.message || "Unknown error"));
+      }
     } finally {
       setSaving(false);
     }

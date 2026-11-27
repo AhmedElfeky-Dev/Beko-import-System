@@ -3,8 +3,27 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { all, get } from '../_lib/db.js';
 import { verifyToken, JWT_SECRET } from '../_lib/auth.js';
+import { logAction } from '../_lib/auditLog.js';
 
 const router = express.Router();
+
+// ── Rate limiting (in-memory per serverless instance) ──
+const loginAttempts = new Map(); // key=ip, value={count, firstAttempt}
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_ATTEMPTS = 15; // per window
+
+function checkRateLimit(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry || now - entry.firstAttempt > RATE_LIMIT_WINDOW_MS) {
+    loginAttempts.set(ip, { count: 1, firstAttempt: now });
+    return true;
+  }
+  entry.count++;
+  if (entry.count > MAX_ATTEMPTS) return false;
+  return true;
+}
 
 async function buildUserPayload(userId) {
   const user = await get('SELECT id, email, name FROM users WHERE id = $1', [userId]);
@@ -24,17 +43,24 @@ async function buildUserPayload(userId) {
 
 router.post('/login', async (req, res) => {
   try {
+    if (!checkRateLimit(req)) {
+      return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+    }
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     const user = await get('SELECT * FROM users WHERE LOWER(email) = $1', [String(email).trim().toLowerCase()]);
-    if (!user || !(await bcrypt.compare(String(password), user.password_hash)))
+    if (!user || !(await bcrypt.compare(String(password), user.password_hash))) {
+      await logAction({ id: null, email: String(email).trim() }, 'login_failed', 'auth', null);
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
     const payload = await buildUserPayload(user.id);
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    // JWT contains only id for authentication; live permissions are loaded per-request
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    await logAction(payload, 'login', 'auth', user.id);
     res.json({ token, user: payload });
   } catch (err) {
     console.error('Login error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
 
@@ -45,7 +71,10 @@ router.get('/me', verifyToken, async (req, res) => {
     const payload = await buildUserPayload(req.user.id);
     if (!payload) return res.status(404).json({ error: 'User not found' });
     res.json(payload);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('GET /me error:', err.message);
+    res.status(500).json({ error: 'Failed to load user profile' });
+  }
 });
 
 export default router;

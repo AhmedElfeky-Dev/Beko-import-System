@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { all, get, run } from '../_lib/db.js';
 import { verifyToken, requireAdmin } from '../_lib/auth.js';
+import { logAction } from '../_lib/auditLog.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -55,7 +56,10 @@ router.get('/', requireAdmin, async (_req, res) => {
       }))
     );
     res.json(result);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('GET /users error:', err.message);
+    res.status(500).json({ error: 'Failed to load users' });
+  }
 });
 
 // POST /api/users — create user (admin only)
@@ -96,8 +100,12 @@ router.post('/', requireAdmin, async (req, res) => {
        WHERE u.id = $1 GROUP BY u.id`,
       [id]
     );
+    await logAction(req.user, 'create', 'user', id, { email });
     res.status(201).json({ ...user, display_name: user.name, permissions: perms });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('POST /users error:', err.message);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
 });
 
 // PUT /api/users/:id — update user info / password
@@ -134,8 +142,12 @@ router.put('/:id', requireAdmin, async (req, res) => {
        WHERE u.id = $1 GROUP BY u.id`,
       [id]
     );
+    await logAction(req.user, 'update', 'user', id);
     res.json({ ...user, display_name: user.name, permissions: perms });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('PUT /users/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
 });
 
 // DELETE /api/users/:id
@@ -148,15 +160,22 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     await run('DELETE FROM page_permissions WHERE user_id = $1', [id]);
     await run('DELETE FROM user_roles WHERE user_id = $1', [id]);
     await run('DELETE FROM users WHERE id = $1', [id]);
+    await logAction(req.user, 'delete', 'user', id);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('DELETE /users/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
 });
 
 // GET /api/users/:id/permissions — returns {page: 'none'|'view'|'edit'}
 router.get('/:id/permissions', requireAdmin, async (req, res) => {
   try {
     res.json(await getPermsMap(req.params.id));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('GET /users/:id/permissions error:', err.message);
+    res.status(500).json({ error: 'Failed to load permissions' });
+  }
 });
 
 // PUT /api/users/:id/permissions — accepts {page: 'none'|'view'|'edit'}
@@ -175,8 +194,12 @@ router.put('/:id/permissions', requireAdmin, async (req, res) => {
         [id, page, can_view, can_edit, can_delete]
       );
     }
+    await logAction(req.user, 'update_permissions', 'user', id, req.body);
     res.json(await getPermsMap(id));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('PUT /users/:id/permissions error:', err.message);
+    res.status(500).json({ error: 'Failed to update permissions' });
+  }
 });
 
 // PUT /api/users/:id/roles
@@ -189,8 +212,12 @@ router.put('/:id/roles', requireAdmin, async (req, res) => {
         [req.params.id, role]);
     }
     const updatedRoles = await all('SELECT role FROM user_roles WHERE user_id = $1', [req.params.id]);
+    await logAction(req.user, 'update_roles', 'user', req.params.id, { roles });
     res.json({ roles: updatedRoles.map(r => r.role) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('PUT /users/:id/roles error:', err.message);
+    res.status(500).json({ error: 'Failed to update roles' });
+  }
 });
 
 export default router;

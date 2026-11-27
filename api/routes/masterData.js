@@ -1,7 +1,8 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { all, get, run } from '../_lib/db.js';
+import { all, get, run, pool } from '../_lib/db.js';
 import { verifyToken, requirePermission } from '../_lib/auth.js';
+import { logAction } from '../_lib/auditLog.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -15,7 +16,10 @@ router.get('/', async (req, res) => {
       ? await all('SELECT id, category, value, code FROM master_data WHERE category = $1 ORDER BY value ASC', [category])
       : await all('SELECT id, category, value, code FROM master_data ORDER BY category ASC, value ASC', []);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('GET /master-data error:', err.message);
+    res.status(500).json({ error: 'Failed to load master data' });
+  }
 });
 
 router.post('/', requirePermission('settings', 'edit'), async (req, res) => {
@@ -29,11 +33,16 @@ router.post('/', requirePermission('settings', 'edit'), async (req, res) => {
     if (dup) return res.json({ id: dup.id, category, value: v, code: c });
     const id = uuidv4();
     await run('INSERT INTO master_data (id, category, value, code) VALUES ($1, $2, $3, $4)', [id, category, v, c]);
+    await logAction(req.user, 'create', 'master_data', id, { category, value: v });
     res.status(201).json({ id, category, value: v, code: c });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('POST /master-data error:', err.message);
+    res.status(500).json({ error: 'Failed to add master data' });
+  }
 });
 
 router.post('/bulk', requirePermission('settings', 'edit'), async (req, res) => {
+  const client = await pool.connect();
   try {
     const { category, values } = req.body || {};
     if (!MASTER_CATEGORIES.has(category) || !Array.isArray(values))
@@ -41,17 +50,26 @@ router.post('/bulk', requirePermission('settings', 'edit'), async (req, res) => 
     const existing = await all('SELECT LOWER(value) as lv FROM master_data WHERE category = $1', [category]);
     const existingSet = new Set(existing.map(r => r.lv));
     let added = 0;
+    await client.query('BEGIN');
     for (const raw of values) {
       const obj = typeof raw === 'string' ? { value: raw, code: null } : raw;
       const v = String(obj?.value ?? '').trim();
       if (!v || existingSet.has(v.toLowerCase())) continue;
-      await run('INSERT INTO master_data (id, category, value, code) VALUES ($1, $2, $3, $4)',
+      await client.query('INSERT INTO master_data (id, category, value, code) VALUES ($1, $2, $3, $4)',
         [uuidv4(), category, v, (obj.code ?? '').toString().trim() || null]);
       existingSet.add(v.toLowerCase());
       added++;
     }
+    await client.query('COMMIT');
+    if (added > 0) await logAction(req.user, 'bulk_create', 'master_data', null, { category, added });
     res.json({ added, skipped: values.length - added });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('POST /master-data/bulk error:', err.message);
+    res.status(500).json({ error: 'Bulk master data import failed' });
+  } finally {
+    client.release();
+  }
 });
 
 router.put('/:id', requirePermission('settings', 'edit'), async (req, res) => {
@@ -68,15 +86,23 @@ router.put('/:id', requirePermission('settings', 'edit'), async (req, res) => {
         [(req.body.code ?? '').toString().trim() || null, req.params.id]);
     }
     const updated = await get('SELECT id, category, value, code FROM master_data WHERE id = $1', [req.params.id]);
+    await logAction(req.user, 'update', 'master_data', req.params.id);
     res.json(updated);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('PUT /master-data/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update master data' });
+  }
 });
 
 router.delete('/:id', requirePermission('settings', 'edit'), async (req, res) => {
   try {
     await run('DELETE FROM master_data WHERE id = $1', [req.params.id]);
+    await logAction(req.user, 'delete', 'master_data', req.params.id);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('DELETE /master-data/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to delete master data' });
+  }
 });
 
 export default router;
