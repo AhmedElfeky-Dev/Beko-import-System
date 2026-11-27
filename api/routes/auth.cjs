@@ -1,8 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { all, get } = require('../_lib/db');
-const { verifyToken, JWT_SECRET } = require('../_lib/auth');
+const { all, get } = require('../_lib/db.cjs');
+const { verifyToken, JWT_SECRET } = require('../_lib/auth.cjs');
 
 const router = express.Router();
 
@@ -19,16 +19,9 @@ async function buildUserPayload(userId) {
     else permissions[p.page] = 'none';
   });
   if (isAdmin) Object.keys(permissions).forEach(k => { permissions[k] = 'edit'; });
-  return {
-    id: user.id,
-    email: user.email,
-    displayName: user.name || user.email,
-    isAdmin,
-    permissions,
-  };
+  return { id: user.id, email: user.email, displayName: user.name || user.email, isAdmin, permissions };
 }
 
-// POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -53,7 +46,6 @@ router.get('/me', verifyToken, async (req, res) => {
     if (!payload) return res.status(404).json({ error: 'User not found' });
     res.json(payload);
   } catch (err) {
-    console.error('/me error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { get, run, pool } = require('./db');
+const { get, run, pool } = require('./db.cjs');
 
 let initialized = false;
 
@@ -8,7 +8,6 @@ async function initIfNeeded() {
   if (initialized) return;
   initialized = true;
   try {
-    // Create all tables
     const client = await pool.connect();
     try {
       await client.query(`
@@ -20,13 +19,11 @@ async function initIfNeeded() {
           updated_at TIMESTAMPTZ DEFAULT NOW(),
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
-
         CREATE TABLE IF NOT EXISTS user_roles (
           user_id TEXT NOT NULL,
           role TEXT NOT NULL DEFAULT 'user',
           PRIMARY KEY (user_id, role)
         );
-
         CREATE TABLE IF NOT EXISTS page_permissions (
           user_id TEXT NOT NULL,
           page TEXT NOT NULL,
@@ -35,20 +32,17 @@ async function initIfNeeded() {
           can_delete BOOLEAN DEFAULT false,
           PRIMARY KEY (user_id, page)
         );
-
         CREATE TABLE IF NOT EXISTS shipments (
           id TEXT PRIMARY KEY,
           data JSONB NOT NULL DEFAULT '{}',
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
-
         CREATE TABLE IF NOT EXISTS settings (
           id TEXT PRIMARY KEY,
           data JSONB NOT NULL DEFAULT '{}',
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
-
         CREATE TABLE IF NOT EXISTS master_data (
           id TEXT PRIMARY KEY,
           category TEXT NOT NULL,
@@ -63,12 +57,10 @@ async function initIfNeeded() {
       client.release();
     }
 
-    // Seed admin if no users exist
     const existing = await get('SELECT id FROM users LIMIT 1', []);
     if (!existing) {
       const adminId = uuidv4();
       const hash = bcrypt.hashSync('admin123', 10);
-
       await run(
         'INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
         [adminId, 'admin@swiftcargo.local', hash, 'Admin']
@@ -80,64 +72,36 @@ async function initIfNeeded() {
       for (const page of ['dashboard', 'shipments', 'costs', 'settings']) {
         await run(
           `INSERT INTO page_permissions (user_id, page, can_view, can_edit, can_delete)
-           VALUES ($1, $2, true, true, true)
-           ON CONFLICT DO NOTHING`,
+           VALUES ($1, $2, true, true, true) ON CONFLICT DO NOTHING`,
           [adminId, page]
         );
       }
-
-      // Seed master data
-      const SEED_MASTER = [
-        { category: 'supplier_name', value: 'Bosch Home Appliances' },
-        { category: 'supplier_name', value: 'Samsung Electronics' },
-        { category: 'supplier_name', value: 'LG Electronics' },
-        { category: 'country_of_origin', value: 'Germany' },
-        { category: 'country_of_origin', value: 'South Korea' },
-        { category: 'country_of_origin', value: 'China' },
-        { category: 'carrier', value: 'Maersk' },
-        { category: 'carrier', value: 'MSC' },
-        { category: 'carrier', value: 'CMA CGM' },
-        { category: 'pol', value: 'Hamburg' },
-        { category: 'pol', value: 'Shanghai' },
-        { category: 'pol', value: 'Busan' },
-        { category: 'pod', value: 'Jeddah' },
-        { category: 'pod', value: 'Alexandria' },
-        { category: 'pod', value: 'Port Said' },
-        { category: 'broker', value: 'DHL Global Forwarding' },
-        { category: 'broker', value: 'Agility Logistics' },
-        { category: 'payment_term', value: 'Open Account' },
-        { category: 'payment_term', value: 'CAD' },
-        { category: 'payment_term', value: 'Advance' },
-        { category: 'incoterm', value: 'CIF' },
-        { category: 'incoterm', value: 'FOB' },
-        { category: 'incoterm', value: 'DDP' },
-        { category: 'bank_name', value: 'Deutsche Bank' },
-        { category: 'bank_name', value: 'UniCredit' },
-        { category: 'cost_item', value: 'Freight' },
-        { category: 'cost_item', value: 'THC USD' },
-        { category: 'cost_item', value: 'Customs Clearance' },
-        { category: 'cost_item', value: 'Import Duty' },
-        { category: 'cost_item', value: 'Transportation' },
-        { category: 'cost_item', value: 'Storage' },
-        { category: 'owner', value: 'Ragab' },
-        { category: 'owner', value: 'Atef' },
-        { category: 'owner', value: 'Mostafa' },
+      const SEED = [
+        ['supplier_name','Bosch Home Appliances'],['supplier_name','Samsung Electronics'],['supplier_name','LG Electronics'],
+        ['country_of_origin','Germany'],['country_of_origin','South Korea'],['country_of_origin','China'],
+        ['carrier','Maersk'],['carrier','MSC'],['carrier','CMA CGM'],
+        ['pol','Hamburg'],['pol','Shanghai'],['pol','Busan'],
+        ['pod','Jeddah'],['pod','Alexandria'],['pod','Port Said'],
+        ['broker','DHL Global Forwarding'],['broker','Agility Logistics'],
+        ['payment_term','Open Account'],['payment_term','CAD'],['payment_term','Advance'],
+        ['incoterm','CIF'],['incoterm','FOB'],['incoterm','DDP'],
+        ['bank_name','Deutsche Bank'],['bank_name','UniCredit'],
+        ['cost_item','Freight'],['cost_item','THC USD'],['cost_item','Customs Clearance'],
+        ['cost_item','Import Duty'],['cost_item','Transportation'],['cost_item','Storage'],
+        ['owner','Ragab'],['owner','Atef'],['owner','Mostafa'],
       ];
-
-      for (const { category, value } of SEED_MASTER) {
+      for (const [category, value] of SEED) {
         await run(
-          `INSERT INTO master_data (id, category, value, code)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO master_data (id, category, value, code) VALUES ($1, $2, $3, $4)
            ON CONFLICT (category, value) DO NOTHING`,
           [uuidv4(), category, value, null]
         );
       }
-
-      console.log('✅ DB initialized and seeded with admin@swiftcargo.local / admin123');
+      console.log('✅ DB initialized: admin@swiftcargo.local / admin123');
     }
   } catch (err) {
-    console.error('initIfNeeded error:', err.message, err.stack);
-    initialized = false; // allow retry on next request
+    console.error('initIfNeeded error:', err.message);
+    initialized = false;
   }
 }
 

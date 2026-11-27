@@ -8,28 +8,10 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-// Convert SQLite-style SQL to PostgreSQL
-function toPg(sql) {
-  let i = 0;
-  let result = sql
-    .replace(/\?/g, () => `$${++i}`)
-    .replace(/datetime\('now'\)/gi, 'NOW()')
-    .replace(/lower\(/gi, 'LOWER(');
-
-  // INSERT OR IGNORE → INSERT ... ON CONFLICT DO NOTHING
-  if (/INSERT\s+OR\s+IGNORE\s+INTO/i.test(result)) {
-    result = result.replace(/INSERT\s+OR\s+IGNORE\s+INTO/i, 'INSERT INTO');
-    if (!/ON\s+CONFLICT/i.test(result)) result += ' ON CONFLICT DO NOTHING';
-  }
-
-  return result;
-}
-
-async function execute(rawSql, params = []) {
-  const pgSql = toPg(rawSql);
+async function execute(sql, params = []) {
   const client = await pool.connect();
   try {
-    return await client.query(pgSql, params);
+    return await client.query(sql, params);
   } finally {
     client.release();
   }
