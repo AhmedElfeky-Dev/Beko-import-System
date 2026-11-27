@@ -145,9 +145,7 @@ export default function ShipmentForm() {
       if (etaFactory && d > etaFactory) return "ETA Port cannot be after ETA Factory";
     } else if (field === "etaFactory") {
       if (etaPort && d < etaPort) return "ETA Factory cannot be before ETA Port";
-      if (ataFactory && d > ataFactory) return "ETA Factory cannot be after ATA Factory";
     } else if (field === "ataFactory") {
-      if (etaFactory && d < etaFactory) return "ATA Factory cannot be before ETA Factory";
       if (etaPort && d < etaPort) return "ATA Factory cannot be before ETA Port";
     }
     return null;
